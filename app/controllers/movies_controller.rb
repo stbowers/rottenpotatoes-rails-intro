@@ -11,20 +11,48 @@ class MoviesController < ApplicationController
   end
 
   def index
-    # Get all possible ratings for movies in the database
-    @all_ratings = Movie.all_ratings
+    # Get ratings and sort_by from params, or if they're stored in session, get them
+    # from the session and then redirect the request so that they're in params (to be RESTful).
+    reload = false
+    @ratings =
+      if params.key?(:ratings)
+        params[:ratings]
+      elsif session.key?(:ratings)
+        reload = true
+        session[:ratings]
+      else
+        Hash[Movie.all_ratings.collect {|rating| [rating, 1]}]
+      end
+    @sort_by =
+      if params.key?(:sort_by)
+        params[:sort_by]
+      elsif session.key?(:sort_by)
+        reload = true
+        session[:sort_by]
+      else
+        ''
+      end
 
-    # Get which ratings we should display to the user (all enabled if no ratings params found)
-    @display_ratings = params.key?(:ratings) ? params[:ratings].keys : @all_ratings
-    
-    @sort_by = params.key?(:sort_by) ? params[:sort_by] : ''
-    case @sort_by
-    when "title"
-      @movies = Movie.order(:title)
-    when "release_date"
-      @movies = Movie.order(:release_date)
+    # If either ratings or sort_by was loaded from session, redirect to URI with specified ratings and sort_by
+    if reload
+      flash.keep
+      redirect_to(movies_path(ratings: @ratings, sort_by: @sort_by))
     else
-      @movies = Movie.where({rating: @display_ratings})
+      # Save ratings and sorting in session
+      session[:ratings] = @ratings
+      session[:sort_by] = @sort_by
+
+      # Get all possible ratings for movies in the database
+      @all_ratings = Movie.all_ratings
+
+      case @sort_by
+      when "title"
+        @movies = Movie.where({rating: @ratings.keys}).order(:title)
+      when "release_date"
+        @movies = Movie.where({rating: @ratings.keys}).order(:release_date)
+      else
+        @movies = Movie.where({rating: @ratings.keys})
+      end
     end
   end
 
