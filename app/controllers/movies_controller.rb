@@ -11,6 +11,12 @@ class MoviesController < ApplicationController
   end
 
   def index
+    # Get all possible ratings for movies in the database
+    @all_ratings = Movie.all_ratings
+
+    # Get which ratings we should display to the user (all enabled if no ratings params found)
+    ratings = params.key?(:ratings) ? params[:ratings].keys : @all_ratings
+    
     @sort_by = params.key?(:sort_by) ? params[:sort_by] : ''
     case @sort_by
     when "title"
@@ -18,7 +24,7 @@ class MoviesController < ApplicationController
     when "release_date"
       @movies = Movie.order(:release_date)
     else
-      @movies = Movie.all
+      @movies = Movie.where({rating: ratings})
     end
   end
 
